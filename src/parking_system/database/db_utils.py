@@ -1,126 +1,59 @@
-import os
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from .models import Base, Slot, Vehicle
+from typing import List, Optional
+from parking_system.models.entities import Slot, Vehicle
 
-# ---------------- Database setup ----------------
-DB_FILE = os.path.join(os.path.dirname(__file__), "parking.db")
-if os.path.exists(DB_FILE):
-    os.remove(DB_FILE)  # delete old DB
+_slots: List[Slot] = []
+_vehicles: List[Vehicle] = []
 
-engine = create_engine(f"sqlite:///{DB_FILE}", echo=False)
-Session = sessionmaker(bind=engine)
-Base.metadata.create_all(engine)
+_slot_id_counter = 1
+_vehicle_id_counter = 1
 
-# Auto-create default slots A1-A5
-def init_default_slots():
-    session = Session()
-    try:
-        existing = session.query(Slot).count()
-        if existing == 0:
-            for i in range(1, 6):
-                slot = Slot(number=f"A{i}")
-                session.add(slot)
-            session.commit()
-    finally:
-        session.close()
 
-init_default_slots()
+def create_slot(slot_type: str, level: int) -> Slot:
+    global _slot_id_counter
+    slot = Slot(
+        id=_slot_id_counter,
+        slot_type=slot_type,
+        level=level
+    )
+    _slots.append(slot)
+    _slot_id_counter += 1
+    return slot
 
-# ---------------- Slot Utilities ----------------
-def create_slot(number):
-    session = Session()
-    try:
-        if session.query(Slot).filter_by(number=number).first():
-            return False, f"Slot {number} already exists."
-        slot = Slot(number=number)
-        session.add(slot)
-        session.commit()
-        return True, f"Slot {number} created successfully."
-    finally:
-        session.close()
 
-def list_slots():
-    session = Session()
-    try:
-        return [(s.number, s.status) for s in session.query(Slot).all()]
-    finally:
-        session.close()
+def list_slots() -> List[Slot]:
+    return _slots
 
-def allocate_slot_to_vehicle(plate_number):
-    session = Session()
-    try:
-        vehicle = session.query(Vehicle).filter_by(plate_number=plate_number).first()
-        if not vehicle:
-            return False, f"Vehicle {plate_number} not found."
-        if vehicle.slot:
-            return False, f"Vehicle already allocated to slot {vehicle.slot.number}."
-        free_slot = session.query(Slot).filter_by(status="Free").first()
-        if not free_slot:
-            return False, "No free slots available."
-        free_slot.status = "Occupied"
-        vehicle.slot = free_slot
-        session.commit()
-        return True, f"Vehicle allocated to slot {free_slot.number}."
-    finally:
-        session.close()
 
-# ---------------- Vehicle Utilities ----------------
-def register_vehicle(plate_number, vehicle_type):
-    session = Session()
-    try:
-        if session.query(Vehicle).filter_by(plate_number=plate_number).first():
-            return False, f"Vehicle {plate_number} already registered."
-        vehicle = Vehicle(plate_number=plate_number, type=vehicle_type)
-        session.add(vehicle)
-        session.commit()
-        return True, f"Vehicle {plate_number} registered successfully."
-    finally:
-        session.close()
+def register_vehicle(license_plate: str, vehicle_type: str) -> Vehicle:
+    global _vehicle_id_counter
 
-def list_vehicles():
-    session = Session()
-    try:
-        result = []
-        for v in session.query(Vehicle).all():
-            slot_num = v.slot.number if v.slot else "Not allocated"
-            result.append((v.plate_number, v.type, slot_num))
-        return result
-    finally:
-        session.close()
+    for v in _vehicles:
+        if v.license_plate == license_plate:
+            raise ValueError("Vehicle already registered")
 
-def checkin_vehicle(plate_number):
-    session = Session()
-    try:
-        vehicle = session.query(Vehicle).filter_by(plate_number=plate_number).first()
-        if not vehicle:
-            return False, f"Vehicle {plate_number} not found."
-        if vehicle.checked_in:
-            slot_num = vehicle.slot.number if vehicle.slot else "Unknown"
-            return False, f"Vehicle already checked in at slot {slot_num}."
-        if not vehicle.slot:
-            free_slot = session.query(Slot).filter_by(status="Free").first()
-            if not free_slot:
-                return False, "No free slots available."
-            vehicle.slot = free_slot
-        vehicle.slot.status = "Occupied"
-        vehicle.checked_in = True
-        session.commit()
-        return True, f"Vehicle {plate_number} checked in to slot {vehicle.slot.number}."
-    finally:
-        session.close()
+    vehicle = Vehicle(
+        id=_vehicle_id_counter,
+        license_plate=license_plate,
+        vehicle_type=vehicle_type
+    )
+    _vehicles.append(vehicle)
+    _vehicle_id_counter += 1
+    return vehicle
 
-def checkout_vehicle(plate_number):
-    session = Session()
-    try:
-        vehicle = session.query(Vehicle).filter_by(plate_number=plate_number).first()
-        if not vehicle or not vehicle.checked_in or not vehicle.slot:
-            return False, f"Vehicle {plate_number} is not checked in."
-        slot_number = vehicle.slot.number
-        vehicle.slot.status = "Free"
-        vehicle.slot = None
-        vehicle.checked_in = False
-        session.commit()
-        return True, f"Vehicle {plate_number} checked out from slot {slot_number}."
-    finally:
-        session.close()
+
+def allocate_slot_to_vehicle(license_plate: str) -> Slot:
+    vehicle = next((v for v in _vehicles if v.license_plate == license_plate), None)
+    if not vehicle:
+        raise ValueError("Vehicle not registered")
+
+    if vehicle.slot_id is not None:
+        raise ValueError("Vehicle already allocated")
+
+    for slot in _slots:
+        if not slot.is_occupied:
+            slot.is_occupied = True
+            slot.vehicle_plate = license_plate
+            vehicle.slot_id = slot.id
+            return slot
+
+    raise ValueError("No available slots")
