@@ -1,0 +1,13 @@
+# Default configuration
+app:
+  name: Parking Slot Allocation API
+  version: "1.0.0"
+  env: default
+  debug: false
+
+server:
+  host: "127.0.0.1"
+  port: 8000
+
+database:
+  url: "sqlite:///src/parking_system/parking.db"
