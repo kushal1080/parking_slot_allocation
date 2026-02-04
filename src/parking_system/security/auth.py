@@ -1,38 +1,57 @@
 # src/parking_system/security/auth.py
-from parking_system.database.db import get_conn
-import hashlib
 
-# --- User registration & authentication ---
-def register_user(username: str, password: str, role: str):
-    hashed = hashlib.sha256(password.encode()).hexdigest()
-    with get_conn() as conn:
-        cur = conn.cursor()
-        try:
-            cur.execute(
-                "INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
-                (username, hashed, role)
-            )
-        except:
-            pass  # user exists
+from datetime import datetime
+
+# ---------------------------
+# Phase 5 in-memory user store
+# ---------------------------
+_USERS = {
+    "admin": {"password": "admin123", "roles": {"Admin"}},
+    "staff": {"password": "staff123", "roles": {"Staff"}},
+    "system": {"password": "system", "roles": {"Admin"}},
+}
+
+# ---------------------------
+# Authentication Functions
+# ---------------------------
 
 def login_user(username: str, password: str):
-    hashed = hashlib.sha256(password.encode()).hexdigest()
-    with get_conn() as conn:
-        cur = conn.cursor()
-        cur.execute("SELECT role FROM users WHERE username=? AND password=?", (username, hashed))
-        row = cur.fetchone()
-        if row:
-            return {"username": username, "role": row[0]}
-        return None
+    """
+    Authenticate user credentials.
+    Phase 5: in-memory validation (Phase 6 → hashed + DB)
+    Returns single role for Phase 5 demo compatibility.
+    """
+    user = _USERS.get(username)
+    if not user:
+        raise ValueError(f"User '{username}' does not exist")
+
+    if user["password"] != password:
+        raise PermissionError("Invalid credentials")
+
+    # Take first role (Phase 5 demo requires singular 'role')
+    role = list(user["roles"])[0]
+
+    return {
+        "username": username,
+        "role": role,
+        "login_time": datetime.utcnow().isoformat()
+    }
+
 
 def logout_user(username: str):
-    # Placeholder for session handling
-    print(f"{username} logged out.")
+    """
+    Placeholder for session / token invalidation.
+    """
+    # Here you could clear session or token cache in future
+    return True
 
-# --- Role check function (needed by vehicle_manager.py) ---
+
 def check_user_role(username: str, role: str) -> bool:
-    with get_conn() as conn:
-        cur = conn.cursor()
-        cur.execute("SELECT role FROM users WHERE username=?", (username,))
-        row = cur.fetchone()
-        return row and row[0] == role
+    """
+    Role-Based Access Control check.
+    Returns True if user has specified role.
+    """
+    user = _USERS.get(username)
+    if not user:
+        return False
+    return role in user["roles"]

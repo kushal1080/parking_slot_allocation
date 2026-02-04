@@ -1,3 +1,2 @@
-# src/parking_system/notifications/push_service.py
-def send_push_notification(user: str, message: str):
-    print(f"[Push] To: {user}, Message: {message}")
+def send_push_notification(username: str, message: str):
+    print(f"[PUSH] User: {username} | Message: {message}")

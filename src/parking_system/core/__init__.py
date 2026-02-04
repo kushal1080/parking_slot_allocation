@@ -1,13 +1,16 @@
-# Expose all core functionalities for clean imports
-from .vehicle_manager import (
-    register_vehicle,
-    checkin_vehicle,
-    checkout_vehicle
-)
-from .slot_manager import (
-    create_slot,
-    list_slots,
-    allocate_slot,
-    set_slot_occupancy,
-    get_slot_by_id
-)
+"""
+parking_system package root
+
+Exposes high-level submodules only.
+Deep modules (security, analytics, etc.) are imported explicitly where needed.
+"""
+
+__all__ = [
+    "core",
+    "database",
+    "analytics",
+    "io_integration",
+    "security",
+    "notifications",
+    "payment",
+]

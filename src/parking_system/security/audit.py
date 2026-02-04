@@ -1,23 +1,38 @@
-# src/parking_system/security/audit.py
-from parking_system.database.db import get_conn
-import time
+"""
+Audit logging module
+Tracks sensitive and security-critical actions
+"""
 
-def log_admin_action(user: dict, action: str, details: str):
-    timestamp = int(time.time())
-    with get_conn() as conn:
-        cur = conn.cursor()
-        # Create audit_logs table if not exists
-        cur.execute("""
-        CREATE TABLE IF NOT EXISTS audit_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp INTEGER,
-            user TEXT,
-            role TEXT,
-            action TEXT,
-            details TEXT
-        )
-        """)
-        cur.execute(
-            "INSERT INTO audit_logs (timestamp, user, role, action, details) VALUES (?, ?, ?, ?, ?)",
-            (timestamp, user["username"], user["role"], action, details)
-        )
+from datetime import datetime
+from typing import Optional
+
+
+def log_action(
+    user_id: Optional[str],
+    action: str,
+    resource: Optional[str] = None,
+    status: str = "SUCCESS"
+) -> None:
+    """
+    Central audit logger
+
+    Args:
+        user_id: ID of the acting user
+        action: Action performed
+        resource: Optional resource identifier
+        status: SUCCESS / FAILURE
+    """
+
+    timestamp = datetime.utcnow().isoformat()
+
+    log_entry = {
+        "timestamp": timestamp,
+        "user_id": user_id,
+        "action": action,
+        "resource": resource,
+        "status": status,
+    }
+
+    # For now: console log
+    # Later: DB / file / SIEM
+    print(f"[AUDIT] {log_entry}")

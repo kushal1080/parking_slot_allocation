@@ -1,23 +1,28 @@
 # src/parking_system/payment/payment_gateway.py
-from parking_system.database.db import get_conn
-from datetime import datetime
+
+def validate_payment_credentials(method: str) -> bool:
+    """
+    Mock credential validation.
+    In real systems this would validate API keys / tokens.
+    """
+    allowed_methods = {"mock", "card", "upi"}
+    return method in allowed_methods
+
 
 def process_payment(license_plate: str, amount: float, method: str = "mock"):
-    # Create payments table if not exists
-    with get_conn() as conn:
-        cur = conn.cursor()
-        cur.execute("""
-        CREATE TABLE IF NOT EXISTS payments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            license_plate TEXT,
-            amount REAL,
-            method TEXT,
-            timestamp TEXT
-        )
-        """)
-        cur.execute(
-            "INSERT INTO payments (license_plate, amount, method, timestamp) VALUES (?, ?, ?, ?)",
-            (license_plate, amount, method, datetime.now().isoformat())
-        )
-    print(f"[Payment] Vehicle {license_plate} paid {amount} via {method}")
-    return True
+    """
+    Simulate payment processing.
+    """
+    if not validate_payment_credentials(method):
+        raise ValueError(f"Invalid payment method: {method}")
+
+    if amount < 0:
+        raise ValueError("Payment amount cannot be negative")
+
+    # Mock success
+    return {
+        "license_plate": license_plate,
+        "amount": amount,
+        "method": method,
+        "status": "SUCCESS",
+    }
